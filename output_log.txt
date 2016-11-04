@@ -1,0 +1,66 @@
+Initialize engine version: 5.3.4f1 (fdbb5133b820)
+GfxDevice: creating device client; threaded=1
+Direct3D:
+    Version:  Direct3D 11.0 [level 11.0]
+    Renderer: NVIDIA GeForce 830M     (ID=0x1340)
+    Vendor:   NVIDIA
+    VRAM:     1948 MB
+Begin MonoManager ReloadAssembly
+Platform assembly: C:\Users\Chetna\Desktop\chetna\Game\unity\game24_Data\Managed\UnityEngine.dll (this message is harmless)
+Loading C:\Users\Chetna\Desktop\chetna\Game\unity\game24_Data\Managed\UnityEngine.dll into Unity Child Domain
+Platform assembly: C:\Users\Chetna\Desktop\chetna\Game\unity\game24_Data\Managed\Assembly-CSharp.dll (this message is harmless)
+Loading C:\Users\Chetna\Desktop\chetna\Game\unity\game24_Data\Managed\Assembly-CSharp.dll into Unity Child Domain
+Platform assembly: C:\Users\Chetna\Desktop\chetna\Game\unity\game24_Data\Managed\Assembly-UnityScript.dll (this message is harmless)
+Loading C:\Users\Chetna\Desktop\chetna\Game\unity\game24_Data\Managed\Assembly-UnityScript.dll into Unity Child Domain
+Platform assembly: C:\Users\Chetna\Desktop\chetna\Game\unity\game24_Data\Managed\UnityEngine.UI.dll (this message is harmless)
+Loading C:\Users\Chetna\Desktop\chetna\Game\unity\game24_Data\Managed\UnityEngine.UI.dll into Unity Child Domain
+Platform assembly: C:\Users\Chetna\Desktop\chetna\Game\unity\game24_Data\Managed\UnityEngine.Networking.dll (this message is harmless)
+Loading C:\Users\Chetna\Desktop\chetna\Game\unity\game24_Data\Managed\UnityEngine.Networking.dll into Unity Child Domain
+- Completed reload, in  0.169 seconds
+Platform assembly: C:\Users\Chetna\Desktop\chetna\Game\unity\game24_Data\Managed\System.Core.dll (this message is harmless)
+Platform assembly: C:\Users\Chetna\Desktop\chetna\Game\unity\game24_Data\Managed\System.dll (this message is harmless)
+desktop: 1366x768 60Hz; virtual: 1366x768 at 0,0
+<RI> Initializing input.
+<RI> Input initialized.
+<RI> Initialized touch support.
+UnloadTime: 1.518560 ms
+Unloading 7 Unused Serialized files (Serialized files now loaded: 0)
+UnloadTime: 15.710915 ms
+
+Unloading 9 unused Assets to reduce memory usage. Loaded Objects now: 229.
+Total: 0.624219 ms (FindLiveObjects: 0.041054 ms CreateObjectMapping: 0.034989 ms MarkObjects: 0.522981 ms  DeleteObjects: 0.023326 ms)
+
+The referenced script on this Behaviour (Game Object 'Main Camera') is missing!
+ 
+(Filename:  Line: 1655)
+
+Unloading 3 Unused Serialized files (Serialized files now loaded: 0)
+UnloadTime: 2.382109 ms
+
+Unloading 7 unused Assets to reduce memory usage. Loaded Objects now: 717.
+Total: 0.960121 ms (FindLiveObjects: 0.123164 ms CreateObjectMapping: 0.106835 ms MarkObjects: 0.703062 ms  DeleteObjects: 0.025659 ms)
+
+Unloading 4 Unused Serialized files (Serialized files now loaded: 0)
+UnloadTime: 4.073286 ms
+
+Unloading 134 unused Assets to reduce memory usage. Loaded Objects now: 194.
+Total: 1.093083 ms (FindLiveObjects: 0.044787 ms CreateObjectMapping: 0.054584 ms MarkObjects: 0.432941 ms  DeleteObjects: 0.558438 ms)
+
+The referenced script on this Behaviour (Game Object 'Main Camera') is missing!
+ 
+(Filename:  Line: 1655)
+
+Unloading 3 Unused Serialized files (Serialized files now loaded: 0)
+UnloadTime: 1.218113 ms
+
+Unloading 3 unused Assets to reduce memory usage. Loaded Objects now: 717.
+Total: 0.864482 ms (FindLiveObjects: 0.098438 ms CreateObjectMapping: 0.081643 ms MarkObjects: 0.662941 ms  DeleteObjects: 0.019127 ms)
+
+Unloading 4 Unused Serialized files (Serialized files now loaded: 0)
+UnloadTime: 4.815538 ms
+
+Unloading 134 unused Assets to reduce memory usage. Loaded Objects now: 194.
+Total: 1.093549 ms (FindLiveObjects: 0.044320 ms CreateObjectMapping: 0.051318 ms MarkObjects: 0.447403 ms  DeleteObjects: 0.548641 ms)
+
+Setting up 1 worker threads for Enlighten.
+  Thread -> id: b60 -> priority: 1 

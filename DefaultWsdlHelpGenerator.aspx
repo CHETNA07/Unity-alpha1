@@ -10,15 +10,11 @@
 --%>
 
 <%@ Import Namespace="System.Collections" %>
-<%@ Import Namespace="System.Collections.Generic" %>
 <%@ Import Namespace="System.IO" %>
 <%@ Import Namespace="System.Xml.Serialization" %>
 <%@ Import Namespace="System.Xml" %>
 <%@ Import Namespace="System.Xml.Schema" %>
-<%@ Import Namespace="System.Web.Services" %>
 <%@ Import Namespace="System.Web.Services.Description" %>
-<%@ Import Namespace="System.Web.Services.Configuration" %>
-<%@ Import Namespace="System.Web.Configuration" %>
 <%@ Import Namespace="System" %>
 <%@ Import Namespace="System.Net" %>
 <%@ Import Namespace="System.Globalization" %>
@@ -56,7 +52,6 @@ ArrayList InParams;
 ArrayList OutParams;
 string CurrentOperationProtocols;
 int CodeTextColumns = 95;
-BasicProfileViolationCollection ProfileViolations;
 
 void Page_Load(object sender, EventArgs e)
 {
@@ -73,8 +68,6 @@ void Page_Load(object sender, EventArgs e)
 	
 	DefaultBinding = desc.Bindings[0].Name;
 	WebServiceDescription = service.Documentation;
-	if (WebServiceDescription == "" || WebServiceDescription == null)
-		WebServiceDescription = "Description has not been provided";
 	ServiceProtocols = FindServiceProtocols (null);
 	
 	CurrentOperationName = Request.QueryString["op"];
@@ -91,11 +84,6 @@ void Page_Load(object sender, EventArgs e)
 
 	BindingsRepeater.DataSource = list;
 	Page.DataBind();
-	
-	ProfileViolations = new BasicProfileViolationCollection ();
-	foreach (WsiProfilesElement claims in ((WebServicesSection) WebConfigurationManager.GetSection("system.web/webServices")).ConformanceWarnings)
-		if (claims.Name != WsiProfiles.None)
-			WebServicesInteroperability.CheckConformance (claims.Name, descriptions, ProfileViolations);
 }
 
 void BuildOperationInfo ()
@@ -123,21 +111,13 @@ void BuildOperationInfo ()
 	
 	// Protocols supported by the operation
 	CurrentOperationProtocols = "";
-	WebServiceProtocols testProtocols = 0;
 	ArrayList prots = FindServiceProtocols (CurrentOperationName);
 	for (int n=0; n<prots.Count; n++) {
-		string prot = (string) prots [n];
 		if (n != 0) CurrentOperationProtocols += ", ";
-		CurrentOperationProtocols += prot;
-		if (prot == "HttpGet")
-			testProtocols |= WebServiceProtocols.HttpGet;
-		else if (prot == "HttpPost") {
-			testProtocols |= WebServiceProtocols.HttpPost;
-			if (Context.Request.IsLocal)
-				testProtocols |= WebServiceProtocols.HttpPostLocalhost;
-		}
+		CurrentOperationProtocols += (string) prots[n];
 	}
-	CurrentOperationSupportsTest = (WebServicesSection.Current.EnabledProtocols & testProtocols) != 0;
+	
+	CurrentOperationSupportsTest = prots.Contains ("HttpGet") || prots.Contains ("HttpPost");
 
 	// Operation format
 	OperationBinding obin = FindOperation (binding, CurrentOperationName);
@@ -335,31 +315,21 @@ class NoCheckCertificatePolicy : ICertificatePolicy {
 	}
 }
 
-string GetOrPost ()
-{
-	return (CurrentOperationProtocols.IndexOf ("HttpGet") >= 0) ? "GET" : "POST";
-}
-
-string GetQS ()
-{
+string GetTestResult ()
+{ 
+	if (!HasFormResult) return null;
+	
 	bool fill = false;
 	string qs = "";
-	NameValueCollection query_string = Request.QueryString;
-	for (int n = 0; n < query_string.Count; n++) {
+	for (int n=0; n<Request.QueryString.Count; n++)
+	{
 		if (fill) {
 			if (qs != "") qs += "&";
-			qs += query_string.GetKey(n) + "=" + Server.UrlEncode (query_string [n]);
+			qs += Request.QueryString.GetKey(n) + "=" + Server.UrlEncode (Request.QueryString [n]);
 		}
-		if (query_string.GetKey(n) == "ext") fill = true;
+		if (Request.QueryString.GetKey(n) == "ext") fill = true;
 	}
-
-	return qs;
-}
-
-string GetTestResultUrl ()
-{ 
-	if (!HasFormResult) return "";
-	
+		
 	string location = null;
 	ServiceDescription desc = descriptions [0];
 	Service service = desc.Services[0];
@@ -374,7 +344,59 @@ string GetTestResultUrl ()
 	if (location == null) 
 		return "Could not locate web service";
 	
-	return location + "/" + CurrentOperationName;
+	try
+	{
+		string url = location + "/" + CurrentOperationName;
+		Uri uri = new Uri (url);
+		WebRequest req;
+		if (CurrentOperationProtocols.IndexOf ("HttpGet") < 0) {
+			req = WebRequest.Create (url);
+			req.Method = "POST";
+			if (qs != null && qs.Length > 0) {
+				req.ContentType = "application/x-www-form-urlencoded";
+				byte [] postBuffer = Encoding.UTF8.GetBytes (qs);
+				req.ContentLength = postBuffer.Length;
+ 				using (Stream requestStream = req.GetRequestStream ())
+					requestStream.Write (postBuffer, 0, postBuffer.Length);
+			}
+		}
+		else
+			req = WebRequest.Create (url + "?" + qs);
+		if (url.StartsWith ("https:"))
+			ServicePointManager.CertificatePolicy = new NoCheckCertificatePolicy ();
+		HttpCookieCollection cookies = Request.Cookies;
+		int last = cookies.Count;
+		if (last > 0) {
+			CookieContainer container = new CookieContainer ();
+			for (int i = 0; i < last; i++) {
+				HttpCookie hcookie = cookies [i];
+				Cookie cookie = new Cookie (hcookie.Name, hcookie.Value, hcookie.Path, hcookie.Domain);
+				container.Add (uri, cookie);
+			}
+			((HttpWebRequest) req).CookieContainer = container;
+		}
+		WebResponse resp = req.GetResponse();
+		StreamReader sr = new StreamReader (resp.GetResponseStream());
+		string s = sr.ReadToEnd ();
+		sr.Close ();
+		return "<div class='code-xml'>" + ColorizeXml(WrapText(s,CodeTextColumns)) + "</div>";
+	}
+	catch (Exception ex)
+	{ 
+		string res = "<b style='color:red'>" + ex.Message + "</b>";
+		WebException wex = ex as WebException;
+		if (wex != null)
+		{
+			WebResponse resp = wex.Response;
+			if (resp != null) {
+				StreamReader sr = new StreamReader (resp.GetResponseStream());
+				string s = sr.ReadToEnd ();
+				sr.Close ();
+				res += "<div class='code-xml'>" + ColorizeXml(WrapText(s,CodeTextColumns)) + "</div>";
+			}
+		}
+		return res;
+	}
 }
 
 string GenerateOperationMessages (string protocol, bool generateInput)
@@ -1036,7 +1058,7 @@ public class HtmlSampleGenerator: SampleGenerator
 			if (elem == null) throw new InvalidOperationException ("Element not found: " + qname);
 			WriteElementSample (xtw, qname.Namespace, elem);
 		}
-
+		
 		void WriteElementSample (XmlTextWriter xtw, string ns, XmlSchemaElement elem)
 		{
 			bool sharedAnnType = false;
@@ -1130,18 +1152,9 @@ public class HtmlSampleGenerator: SampleGenerator
 		{
 			WriteAttributes (xtw, stype.Attributes, stype.AnyAttribute);
 		}
-
-		Dictionary<XmlSchemaComplexType,int> recursed_types = new Dictionary<XmlSchemaComplexType,int> ();
+		
 		void WriteComplexTypeElements (XmlTextWriter xtw, string ns, XmlSchemaComplexType stype)
 		{
-			int prev = 0;
-			if (recursed_types.ContainsKey (stype))
-				prev = recursed_types [stype];
-
-			if (prev > 1)
-				return;
-			recursed_types [stype] = ++prev;
-
 			if (stype.Particle != null)
 				WriteParticleComplexContent (xtw, ns, stype.Particle);
 			else
@@ -1151,8 +1164,6 @@ public class HtmlSampleGenerator: SampleGenerator
 				else if (stype.ContentModel is XmlSchemaComplexContent)
 					WriteComplexContent (xtw, ns, (XmlSchemaComplexContent)stype.ContentModel);
 			}
-			prev = recursed_types [stype];
-			recursed_types [stype] = --prev;
 		}
 
 		void WriteAttributes (XmlTextWriter xtw, XmlSchemaObjectCollection atts, XmlSchemaAnyAttribute anyat)
@@ -1532,10 +1543,9 @@ public class HtmlSampleGenerator: SampleGenerator
 
 </script>
 
-<head runat="server">
-	<%
-	Response.Write ("<link rel=\"alternate\" type=\"text/xml\" href=\"" + Request.FilePath + "?disco\"/>");
-	%>
+<head>
+	<link rel="alternate" type="text/xml" href="<%=Request.FilePath%>?disco"/>
+
 	<title><%=WebServiceName%> Web Service</title>
     <style type="text/css">
 		BODY { font-family: Arial; margin-left: 20px; margin-top: 20px; font-size: x-small}
@@ -1566,73 +1576,7 @@ public class HtmlSampleGenerator: SampleGenerator
 		A:hover { color: blue }
     </style>
 	
-<script language="javascript" type="text/javascript">
-var req;
-function getXML (command, url, qs) {
-	if (url == "" || url.substring (0, 4) != "http")
-		return;
-	
-	var post_data = null;
-	req = getReq ();
-	req.onreadystatechange = stateChange;
-	if (command == "GET") {
-		url = url + "?" + qs;
-	} else {
-		post_data = qs;
-	}
-	req.open (command, url,  true); 
-	if (command == "POST")
-		req.setRequestHeader ("Content-Type", "application/x-www-form-urlencoded");
-	req.send (post_data); 
-}
-
-function stateChange () {
-	if (req.readyState == 4) {
-		var node = document.getElementById("testresult_div");
-		var text = "";
-		if (req.status == 200) {
-			node.innerHTML = "<div class='code-xml'>" + formatXml (req.responseText) + "</div>";
-		} else {
-			var ht = "<b style='color: red'>" + formatXml (req.status + " - " + req.statusText) + "</b>";
-			if (req.responseText != "")
-				ht = ht + "\n<div class='code-xml'>" + formatXml (req.responseText) + "</div>";
-			node.innerHTML = ht;
-					
-		}
-	}
-}
-
-function formatXml (text)
-{	
-	var re = / /g;
-	text = text.replace (re, "&nbsp;");
-
-	re = /\t/g;
-	text = text.replace (re, "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;");
-	
-	re = /\<\s*(\/?)\s*(.*?)\s*(\/?)\s*\>/g;
-	text = text.replace (re,"{blue:&lt;$1}{maroon:$2}{blue:$3&gt;}");
-	
-	re = /{(\w*):(.*?)}/g;
-	text = text.replace (re,"<span style='color:$1'>$2</span>");
-
-	re = /"(.*?)"/g;
-	text = text.replace (re,"\"<span style='color:purple'>$1</span>\"");
-
-	re = /\r\n|\r|\n/g;
-	text = text.replace (re, "<br/>");
-	
-	return text;
-}
-
-function getReq () {
-	if (window.XMLHttpRequest) {
-		return new XMLHttpRequest();     // Firefox, Safari, ...
-	} else if (window.ActiveXObject) {
-		return new ActiveXObject("Microsoft.XMLHTTP");
-	}
-}
-
+<script>
 function clearForm ()
 {
 	document.getElementById("testFormResult").style.display="none";
@@ -1685,23 +1629,7 @@ function clearForm ()
 
 	<p class="label">Web Service Overview</p>
 	<%=WebServiceDescription%>
-	<br/><br/>
-	<% if (ProfileViolations != null && ProfileViolations.Count > 0) { %>
-		<p class="label">Basic Profile Conformance</p>
-		This web service does not conform to WS-I Basic Profile v1.1
-	<%
-		Response.Write ("<ul>");
-		foreach (BasicProfileViolation vio in ProfileViolations) {
-			Response.Write ("<li><b>" + vio.NormativeStatement + "</b>: " + vio.Details);
-			Response.Write ("<ul>");
-			foreach (string ele in vio.Elements)
-				Response.Write ("<li>" + ele + "</li>");
-			Response.Write ("</ul>");
-			Response.Write ("</li>");
-		}
-		Response.Write ("</ul>");
-	}%>
-
+	
 <%} if (DefaultBinding == null) {%>
 This service does not contain any public web method.
 <%} else if (CurrentPage == "op") {%>
@@ -1789,11 +1717,7 @@ This service does not contain any public web method.
 			</form>
 			<div id="testFormResult" style="display:<%= (HasFormResult?"block":"none") %>">
 			The web service returned the following result:<br/><br/>
-			<div class="codePanel" id="testresult_div">
-			</div>
-			<script language="javascript">
-				getXML ("<%= GetOrPost () %>", "<%= GetTestResultUrl () %>", "<%= GetQS () %>");
-			</script>
+			<div class="codePanel"><%=GetTestResult()%></div>
 			</div>
 		<% } else {%>
 		The test form is not available for this operation because it has parameters with a complex structure.
